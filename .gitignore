@@ -1,5 +1,7 @@
 .web
+.venv
+.states
 *.py[cod]
 assets/external/
 __pycache__/
-.states
+app_fyf_sag/styles/utils.py
