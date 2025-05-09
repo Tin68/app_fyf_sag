@@ -4,4 +4,4 @@
 *.py[cod]
 assets/external/
 __pycache__/
-app_fyf_sag/styles/utils.py
+/app_fyf_sag/styles/utils.py
