@@ -1,17 +1,15 @@
-from typing import Annotated
+
 import reflex as rx
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Body, Depends, HTTPException, status
 from pydantic import BaseModel
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 import jwt
-#from jwt.exceptions import InvalidTokenError
 from passlib.context import CryptContext
 from datetime import datetime, timedelta, timezone
 from app_fyf_sag.db.schemas.user import user_schema, users_schema
 from app_fyf_sag.styles import utils
 from app_fyf_sag.db.client import db_client
 from app_fyf_sag.db.models.user import User, UserDB
-import bcrypt 
 
 
 ALGORITHM = utils.login_algorithm
@@ -28,7 +26,6 @@ crypt = CryptContext(schemes="bcrypt")
 
 # Inicia el server : uvicorn basic_aut_users:app  --reload
 
-
 def search_user(field: str, key):
     try:
         user = db_client.users.find_one({field: key})
@@ -44,6 +41,7 @@ def search_userdb(field: str, key):
     except:
         return {"error": "No se ha encontrado el usuario"}   
 ''' 
+# para intentar encriptar tambien el usuario, no lo veo facil para recuperarlo. no se puede buscar igualdad
 def search_user(field: str, key):
     #bytes = key.encode('utf-8') 
     #salt = bcrypt.gensalt() 
@@ -88,19 +86,15 @@ async def current_user(user: User = Depends(auth_user)):
     return user
 
 @auth_db_router.post("") #http://127.0.0.1:8000/logindb
-async def logindb(form_data: OAuth2PasswordRequestForm = Depends()):  
-    print("Hola tin")  
-    
-    print(form_data) 
-    print(form_data.username) 
-    print(form_data.password) 
-    if type(search_user("username", form_data.username)) == User:
-        user = search_userdb ("username",form_data.username)   
+async def logindb(form_data: dict[str, str] = Depends(oauth2)):    
+    if type(search_user("username", form_data.get("username"))) == User:       
+        user = search_userdb ("username",form_data.get("username"))  
     else:
         raise HTTPException(
-            status_code=status.HTTP_302_FOUND, detail="El Usuario no existe")
+            status_code=status.HTTP_302_FOUND,
+            detail="El Usuario no existe")                        
     #user_db = users_db.get(form.username)
-    if not crypt.verify(form_data.password, user.password):
+    if not crypt.verify(form_data.get("password"), user.password):
         raise HTTPException(status_code = status.HTTP_400_BAD_REQUEST, detail="La contraseña no es correcta")
     access_token = {"sub" : user.username,
                     "exp": datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_DURATION)} #sustituye datetime.utcnow() --> datetime.now(timezone.utc)

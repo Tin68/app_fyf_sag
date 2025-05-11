@@ -2,6 +2,6 @@
 .venv
 .states
 *.py[cod]
+app_fyf_sag/styles/utils.py
 assets/external/
-__pycache__/
-/app_fyf_sag/styles/utils.py
+__pycache__
