@@ -53,6 +53,7 @@ def login() -> rx.Component:
                         rx.input(
                             name="username",
                             width = "100%",
+                            color_scheme="green",
                             required=True,
                         ),
                     ),                
@@ -65,6 +66,7 @@ def login() -> rx.Component:
                             name="password",
                             width = "100%",
                             type="password",
+                            color_scheme="green",
                             required=True,
                         ),
                         margin_y = "1em",  
