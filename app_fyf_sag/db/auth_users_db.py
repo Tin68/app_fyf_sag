@@ -1,7 +1,6 @@
 
 import reflex as rx
 from fastapi import APIRouter, Body, Depends, HTTPException, status
-from pydantic import BaseModel
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 import jwt
 from passlib.context import CryptContext
