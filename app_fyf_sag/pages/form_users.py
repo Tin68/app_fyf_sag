@@ -1,0 +1,343 @@
+import random
+import bcrypt
+import reflex as rx
+
+from app_fyf_sag.componentes import routes
+from app_fyf_sag.styles import utils
+from app_fyf_sag.db.models.user import User
+from app_fyf_sag.db.client import db_client
+from app_fyf_sag.db import user_db
+
+PATTERN = "^[A-Z][0-9]{5}[A-Z]$"
+
+class SelectState2(rx.State):
+    form_data: dict = [] 
+    values: list [str] =[]
+    value_list: list [User] = []
+    value: str = ""
+    name_form: str = ""
+    user_form: str = ""
+    disabled_form: bool = False
+    rol_form: str = ""
+    form_disable: bool = True
+    icon_control: str = "1"
+
+    def reset_submit(self) -> bool:
+        if self.icon_control.find("1") != -1:
+            return True
+        else:
+            return False 
+        
+    '''
+    @rx.var
+    def invalid_username(self) -> bool:
+        return not re.match(
+            r"^[A-Z][0-9]{5}[A-Z]$", self.user_form
+        )'''
+    @rx.var
+    def username_empty(self) -> bool:
+        return not self.user_form.strip()
+
+    def refresh_users(self): 
+        self.values = []     
+        self.value_list = []     
+        #if self.values == []:
+        users = db_client.users.find()
+        for user_find in users:
+            print(user_find)
+            self.value_list.append(user_find)
+            self.values.append(user_find.get("surname"))               
+        self.values.append("****") 
+
+    def set_users_change(self):
+        if self.value == "****":
+            self.icon_control = "1" 
+            self.name_form= ""
+            self.user_form= ""
+            self.disabled_form= False
+            self.rol_form= ""
+            self.form_disable=True
+        else:    
+            for user in self.value_list:
+                if user.get("surname") == self.value:
+                    self.name_form= user.get("surname")
+                    self.user_form= user.get("username")
+                    self.disabled_form= user.get("disabled")
+                    self.rol_form= user.get("rol")
+            self.icon_control = "23"        
+
+    def on_change_user_form (self):
+        self.user_form = self.user_form.upper()
+
+    def on_change_name_form (self):
+        self.name_form = self.name_form.capitalize()    
+
+    def edit_user(self):
+        self.form_disable = False
+        self.icon_control = "3" 
+
+    def add_user(self):
+        self.form_disable = False
+
+    async def delete_user(self, username_form):
+        indice = -1
+        for user in self.value_list:
+                indice += 1
+                if user.get("username") == username_form:
+                    id= user.get("_id")
+                    break
+        await user_db.delete_user(id)
+        yield rx.toast.success("Borrado satisfactoriamente", duration=5000)
+        del self.values[indice]
+        del self.value_list[indice]
+        self.icon_control = "1" 
+        self.name_form= ""
+        self.user_form= ""
+        self.disabled_form= False
+        self.rol_form= ""
+        self.form_disable=True 
+        SelectState2.refresh_users() 
+
+    @rx.event
+    async def submit(self, form_data: dict):   
+        self.form_data = form_data
+        x =form_data.keys()
+        reset = False
+        desabilitado = False
+        for keys in x:
+            if keys == "check":
+                if form_data["check"] == "on":
+                    reset = True   
+            if keys == "switch":
+                if form_data["switch"] == "on":
+                    desabilitado = True
+        surname = form_data["surname"]
+        username = form_data["username"]
+        rol = form_data["select"]
+        if self.icon_control.find("3") != -1:            
+            replace_user: dict = {}
+            for user in self.value_list:
+                if user.get("username") == username:
+                    id= str(user.get("_id"))
+                    break
+            replace_user.update({"id": id})
+            replace_user.update({"username": username})
+            replace_user.update({"surname": surname})
+            replace_user.update({"rol": rol})
+            replace_user.update({"disabled": desabilitado})
+            if reset:
+                bytes = username.encode('utf-8') 
+                salt = bcrypt.gensalt() 
+                result = bcrypt.hashpw(bytes, salt).decode('utf-8')#lo convierte en str
+            else:
+                #pasword antiguo
+                for user in self.value_list:
+                    if user.get("surname") == surname:
+                        result= user.get("password")
+            replace_user.update({"password": result})           
+            await user_db.replace_user(replace_user)
+            yield rx.toast.success("Actualizado satisfactoriamente", duration=5000)
+            self.icon_control = "23" 
+            self.form_disable=True 
+        else:
+            bytes = username.encode('utf-8') 
+            salt = bcrypt.gensalt() 
+            result = bcrypt.hashpw(bytes, salt).decode('utf-8')#lo convierte en str
+            password = result
+            add_user: dict = {}
+            add_user.update({"id": "1"})
+            add_user.update({"username": username})
+            add_user.update({"surname": surname})
+            add_user.update({"rol": rol})
+            add_user.update({"disabled": desabilitado})
+            add_user.update({"password": password})
+            await user_db.add_user(add_user)
+            SelectState2.refresh_users() 
+            yield rx.toast.success("Añadido satisfactoriamente", duration=5000)
+            self.icon_control = "23" 
+            self.form_disable=True 
+            print(surname)
+            self.value = surname
+
+
+    @rx.event
+    def choose_randomly(self):
+        """Change the select value var."""
+        original_value = self.value
+        while self.value == original_value:
+            self.value = random.choice(self.values)
+
+@rx.page(
+        route= routes.Route.FORMUSERS.value,
+        title= utils.formusers_title,
+        description= utils.formusers_description,
+        on_load=SelectState2.refresh_users()        
+)
+def form_users() -> rx.Component:
+    return rx.flex(
+    rx.vstack(
+        rx.center(
+            rx.card(
+                rx.hstack(
+                    rx.icon(tag="users-round", size = 40, color="green"),
+                    rx.vstack(
+                        rx.heading("Usuarios"),
+                        rx.text(
+                            "Gestion de usuarios.", size="1"
+                        ),
+                        spacing="0",
+                    ),   
+                    margin = "1em",           
+                ), 
+                rx.hstack(
+                    rx.text("Usuarios"),
+                    rx.select.root(
+                        rx.select.trigger(placeholder="Seleccione usuarios",color_scheme="green",),
+                        rx.select.content(
+                            rx.select.group(
+                                rx.foreach(
+                                    SelectState2.values,
+                                    lambda x: rx.select.item(
+                                        x, value=x                                            
+                                    ),                                                        
+                                )                                    
+                            ),                            
+                            color_scheme="green",
+                        ),
+                        value=SelectState2.value,
+                        on_change=SelectState2.set_value,  
+                        on_open_change= SelectState2.set_users_change(),                                       
+                    ),
+                    margin_y = "1em", 
+                ),
+                rx.separator(),   
+                rx.hstack(
+                    rx.cond(
+                        (SelectState2.icon_control.contains("1")),
+                        rx.link(                        
+                            rx.icon(tag="user-plus", size = 30, color="green"), 
+                            on_click=SelectState2.add_user,
+                        ),   
+                        rx.icon(tag="user-plus", size = 30, color=rx.color("green", 12)),  
+                    ),                 
+                    rx.spacer(),
+                    rx.cond(
+                        (SelectState2.icon_control.contains("2")),
+                        rx.link(
+                            rx.icon(tag="user-minus", size = 30, color="green"),
+                            on_click=SelectState2.delete_user(SelectState2.user_form),
+                        ),     
+                        rx.icon(tag="user-minus", size = 30, color=rx.color("green", 12)),  
+                    ),                   
+                    rx.spacer(),
+                    rx.cond(                        
+                        (SelectState2.icon_control.contains("3")),
+                        rx.link(
+                            rx.icon(tag="user-pen", size = 30, color="green"),
+                            on_click = SelectState2.edit_user()
+                        ),  
+                        rx.icon(tag="user-pen", size = 30, color=rx.color("green", 12)),                                               
+                    ),
+                    margin = "1em",           
+                ),         
+                rx.separator(),      
+                rx.form.root(
+                    rx.vstack(
+                        rx.text("Nombre"),
+                        rx.input(             
+                            value = SelectState2.name_form,               
+                            name="surname",
+                            width = "100%",
+                            color_scheme="green",
+                            required=True,
+                            disabled=SelectState2.form_disable, 
+                            on_change=SelectState2.set_name_form, 
+                            on_blur=SelectState2.on_change_name_form                                                      
+                        ),
+                        margin_y = "1em",  
+                    ),                     
+                    rx.vstack(
+                        rx.text("Usuario"),
+                        rx.input(
+                            value = SelectState2.user_form,
+                            name="username",
+                            width = "100%",
+                            color_scheme="green",
+                            required=True,
+                            disabled=SelectState2.form_disable,
+                            on_change=SelectState2.set_user_form,
+                            on_blur=SelectState2.on_change_user_form
+                        ),
+                        margin_y = "1em",  
+                    ), 
+                    rx.hstack(
+                        rx.checkbox(
+                            name="check",
+                            text="Resetear Contraseña",
+                            color_scheme="green",
+                            disabled=SelectState2.form_disable,
+                        ),
+                        margin_y = "1em",
+                    ),
+                    rx.hstack(
+                        rx.hstack(
+                            rx.text("Deshabilitado"),
+                            rx.switch(
+                                name="switch",
+                                color_scheme="green",
+                                checked= SelectState2.disabled_form,
+                                disabled=SelectState2.form_disable,
+                                on_change=SelectState2.set_disabled_form,
+                            ),
+                            margin_y = "1em", 
+                        ),
+                        rx.spacer(),
+                        rx.hstack(
+                            rx.text("Rol"),
+                            rx.select(                                
+                                ["user","admin"],
+                                default_value="user",
+                                name="select",
+                                required=True,
+                                color_scheme="green",
+                                value = SelectState2.rol_form,
+                                disabled=SelectState2.form_disable,
+                                on_change=SelectState2.set_rol_form,
+                            ),
+                            
+                            margin_y = "1em", 
+                        ),
+                    ),
+                    rx.hstack(
+                        rx.spacer(),
+                        rx.button(
+                            "Actualizar",
+                            type="submit",
+                            color_scheme= "grass",   
+                            disabled=SelectState2.form_disable, 
+                        ),                                                     
+                        rx.spacer(),
+                        rx.button(
+                            "Cancelar",
+                            type="reset",
+                            color_scheme= "grass",   
+                            disabled=SelectState2.form_disable,
+                            on_click= print("Cancelar")
+                        ),
+                        rx.spacer(),
+                    ),
+                    on_submit = SelectState2.submit,
+                    reset_on_submit = True, #SelectState2.reset_submit,
+                ),
+                width = "25vw",
+            ),
+            padding = "50px 50px 50px 50px",
+            bg="#1D2330",
+            borderRadius="15px",
+            boxShadow="41px -41px 82px #0D0F15, -41px 41px 82px #2D374B",
+        ),
+    ),
+    justify="center",
+    padding="100px",
+    height="100vh" 
+    ),
