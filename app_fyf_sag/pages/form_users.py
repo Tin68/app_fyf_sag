@@ -23,7 +23,7 @@ class SelectState2(rx.State):
     icon_control: str = "1"
 
     def reset_submit(self) -> bool:
-        if self.icon_control.contains("1"):
+        if self.icon_control.find("1") != -1:
             return True
         else:
             return False 
@@ -38,13 +38,16 @@ class SelectState2(rx.State):
     def username_empty(self) -> bool:
         return not self.user_form.strip()
 
-    def find_users(self):        
-        if self.values == []:
-            users = db_client.users.find()
-            for user_find in users:
-                self.value_list.append(user_find)
-                self.values.append(user_find.get("surname"))               
-            self.values.append("****") 
+    def refresh_users(self): 
+        self.values = []     
+        self.value_list = []     
+        #if self.values == []:
+        users = db_client.users.find()
+        for user_find in users:
+            print(user_find)
+            self.value_list.append(user_find)
+            self.values.append(user_find.get("surname"))               
+        self.values.append("****") 
 
     def set_users_change(self):
         if self.value == "****":
@@ -66,11 +69,12 @@ class SelectState2(rx.State):
     def on_change_user_form (self):
         self.user_form = self.user_form.upper()
 
-    
+    def on_change_name_form (self):
+        self.name_form = self.name_form.capitalize()    
+
     def edit_user(self):
         self.form_disable = False
         self.icon_control = "3" 
-        
 
     def add_user(self):
         self.form_disable = False
@@ -92,6 +96,7 @@ class SelectState2(rx.State):
         self.disabled_form= False
         self.rol_form= ""
         self.form_disable=True 
+        SelectState2.refresh_users() 
 
     @rx.event
     async def submit(self, form_data: dict):   
@@ -109,32 +114,51 @@ class SelectState2(rx.State):
         surname = form_data["surname"]
         username = form_data["username"]
         rol = form_data["select"]
-        replace_user: dict = {}
-        for user in self.value_list:
-            if user.get("username") == username:
-                id= str(user.get("_id"))
-                break
-        replace_user.update({"id": id})
-        replace_user.update({"username": username})
-        replace_user.update({"surname": surname})
-        replace_user.update({"rol": rol})
-        replace_user.update({"disabled": desabilitado})
-        if reset:
+        if self.icon_control.find("3") != -1:            
+            replace_user: dict = {}
+            for user in self.value_list:
+                if user.get("username") == username:
+                    id= str(user.get("_id"))
+                    break
+            replace_user.update({"id": id})
+            replace_user.update({"username": username})
+            replace_user.update({"surname": surname})
+            replace_user.update({"rol": rol})
+            replace_user.update({"disabled": desabilitado})
+            if reset:
+                bytes = username.encode('utf-8') 
+                salt = bcrypt.gensalt() 
+                result = bcrypt.hashpw(bytes, salt).decode('utf-8')#lo convierte en str
+            else:
+                #pasword antiguo
+                for user in self.value_list:
+                    if user.get("surname") == surname:
+                        result= user.get("password")
+            replace_user.update({"password": result})           
+            await user_db.replace_user(replace_user)
+            yield rx.toast.success("Actualizado satisfactoriamente", duration=5000)
+            self.icon_control = "23" 
+            self.form_disable=True 
+        else:
             bytes = username.encode('utf-8') 
             salt = bcrypt.gensalt() 
             result = bcrypt.hashpw(bytes, salt).decode('utf-8')#lo convierte en str
-            
-        else:
-            #pasword antiguo
-            for user in self.value_list:
-                if user.get("surname") == surname:
-                    result= user.get("password")
-        replace_user.update({"password": result})           
-        print(replace_user) 
-        await user_db.replace_user(replace_user)
-        yield rx.toast.success("Actualizado satisfactoriamente", duration=5000)
-        self.icon_control = "23" 
-        self.form_disable=True 
+            password = result
+            add_user: dict = {}
+            add_user.update({"id": "1"})
+            add_user.update({"username": username})
+            add_user.update({"surname": surname})
+            add_user.update({"rol": rol})
+            add_user.update({"disabled": desabilitado})
+            add_user.update({"password": password})
+            await user_db.add_user(add_user)
+            SelectState2.refresh_users() 
+            yield rx.toast.success("Añadido satisfactoriamente", duration=5000)
+            self.icon_control = "23" 
+            self.form_disable=True 
+            print(surname)
+            self.value = surname
+
 
     @rx.event
     def choose_randomly(self):
@@ -147,7 +171,7 @@ class SelectState2(rx.State):
         route= routes.Route.FORMUSERS.value,
         title= utils.formusers_title,
         description= utils.formusers_description,
-        on_load=SelectState2.find_users()        
+        on_load=SelectState2.refresh_users()        
 )
 def form_users() -> rx.Component:
     return rx.flex(
@@ -227,7 +251,8 @@ def form_users() -> rx.Component:
                             color_scheme="green",
                             required=True,
                             disabled=SelectState2.form_disable, 
-                            on_change=SelectState2.set_name_form                        
+                            on_change=SelectState2.set_name_form, 
+                            on_blur=SelectState2.on_change_name_form                                                      
                         ),
                         margin_y = "1em",  
                     ),                     
@@ -270,15 +295,16 @@ def form_users() -> rx.Component:
                         rx.hstack(
                             rx.text("Rol"),
                             rx.select(                                
-                                ["admin", "user"],
+                                ["user","admin"],
+                                default_value="user",
                                 name="select",
-                                #value=SelectState.value,
-                                #on_change=SelectState.change_value,
+                                required=True,
                                 color_scheme="green",
                                 value = SelectState2.rol_form,
                                 disabled=SelectState2.form_disable,
                                 on_change=SelectState2.set_rol_form,
                             ),
+                            
                             margin_y = "1em", 
                         ),
                     ),
