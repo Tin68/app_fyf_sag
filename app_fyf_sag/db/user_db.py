@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, status#, FastAPI
+from fastapi import APIRouter, HTTPException, status#
 from bson import ObjectId
 from app_fyf_sag.db.models.user import User, UserDB
 from app_fyf_sag.db.schemas.user import user_schema, users_schema
@@ -28,7 +28,7 @@ async def user(id: str):
 
 
 @items_router.post("/", response_model=UserDB, status_code=status.HTTP_201_CREATED)
-async def user(user: UserDB):
+async def add_user(user: UserDB):
     if type(search_user("surname", user.surname)) == User:
         raise HTTPException(
             status_code=status.HTTP_302_FOUND, detail="El usuario ya existe")
@@ -39,19 +39,24 @@ async def user(user: UserDB):
     return UserDB(**new_user)
 
 @items_router.put("/", response_model=UserDB)
-async def user(userdb: UserDB):
-    print(userdb)
+async def replace_user(userdb: UserDB):
     user_dict_put = dict(userdb)
+    print(user_dict_put)
     del user_dict_put["id"]
+
     try:
+        print("try")
+        new_user = db_client.users.find_one({"_id": ObjectId(userdb["id"])})
+        print(new_user)
         db_client.users.find_one_and_replace(
-            {"_id": ObjectId(userdb.id)}, user_dict_put)
+            {"_id": ObjectId(userdb["id"])}, user_dict_put)
     except:
+        print("Error")
         return {"error": "No se ha actualizado el usuario"}
-    return search_userdb("_id", ObjectId(userdb.id))
+    return search_userdb("_id", ObjectId(userdb["id"]))
 
 @items_router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
-async def user(id: str):
+async def delete_user(id: str):
     found = db_client.users.find_one_and_delete({"_id": ObjectId(id)})
     if not found:
         return {"error": "No se ha eliminado el usuario"}
@@ -63,6 +68,7 @@ def search_user(field: str, key):
         return User(**user_schema(user))
     except:
         return {"error": "No se ha encontrado el usuario"}
+    
 def search_userdb(field: str, key):
     try:
         user = db_client.users.find_one({field: key})
