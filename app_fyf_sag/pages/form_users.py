@@ -1,4 +1,5 @@
 import random
+import re
 import bcrypt
 import reflex as rx
 
@@ -18,33 +19,47 @@ class SelectState2(rx.State):
     name_form: str = ""
     user_form: str = ""
     disabled_form: bool = False
-    rol_form: str = ""
+    rol_form: str = "user"
     form_disable: bool = True
     icon_control: str = "1"
 
+    @rx.var
+    def invalid_username(self) -> bool:
+        return not re.match(r"^[a-zA-Z][0-9]{5}[a-zA-Z]$", self.user_form) #suer_entered_usuario
+
+    @rx.var
+    def surname_empty(self) -> bool:
+        #return not self.user_form.strip() # user_entered_name
+        return not self.name_form.strip()
+    
+    @rx.var
+    def surname_is_taken(self) -> bool:  
+            return (self.name_form in self.values)    
+
+    @rx.var
+    def input_invalid(self) -> bool:
+        if self.icon_control == "23":
+            return True
+        else:
+            return (
+                self.invalid_username
+                or self.surname_is_taken
+                or self.surname_empty
+            )
+    
     def reset_submit(self) -> bool:
         if self.icon_control.find("1") != -1:
             return True
         else:
             return False 
         
-    '''
-    @rx.var
-    def invalid_username(self) -> bool:
-        return not re.match(
-            r"^[A-Z][0-9]{5}[A-Z]$", self.user_form
-        )'''
-    @rx.var
-    def username_empty(self) -> bool:
-        return not self.user_form.strip()
-
-    def refresh_users(self): 
+    @rx.event
+    async def refresh_users(self): 
         self.values = []     
         self.value_list = []     
-        #if self.values == []:
+
         users = db_client.users.find()
         for user_find in users:
-            print(user_find)
             self.value_list.append(user_find)
             self.values.append(user_find.get("surname"))               
         self.values.append("****") 
@@ -55,22 +70,22 @@ class SelectState2(rx.State):
             self.name_form= ""
             self.user_form= ""
             self.disabled_form= False
-            self.rol_form= ""
+            self.rol_form= "user"
             self.form_disable=True
         else:    
             for user in self.value_list:
                 if user.get("surname") == self.value:
-                    self.name_form= user.get("surname")
+                    self.name_form= user.get("surname") + " "
                     self.user_form= user.get("username")
                     self.disabled_form= user.get("disabled")
                     self.rol_form= user.get("rol")
             self.icon_control = "23"        
 
-    def on_change_user_form (self):
+    def on_change_user_form (self):       
         self.user_form = self.user_form.upper()
 
     def on_change_name_form (self):
-        self.name_form = self.name_form.capitalize()    
+        self.name_form = self.name_form.title()    
 
     def edit_user(self):
         self.form_disable = False
@@ -88,15 +103,15 @@ class SelectState2(rx.State):
                     break
         await user_db.delete_user(id)
         yield rx.toast.success("Borrado satisfactoriamente", duration=5000)
+        yield SelectState2.refresh_users()
         del self.values[indice]
-        del self.value_list[indice]
-        self.icon_control = "1" 
+        del self.value_list[indice]        
         self.name_form= ""
         self.user_form= ""
         self.disabled_form= False
-        self.rol_form= ""
-        self.form_disable=True 
-        SelectState2.refresh_users() 
+        self.rol_form= "user"
+        self.form_disable=True    
+        self.icon_control = "1"       
 
     @rx.event
     async def submit(self, form_data: dict):   
@@ -111,7 +126,11 @@ class SelectState2(rx.State):
             if keys == "switch":
                 if form_data["switch"] == "on":
                     desabilitado = True
-        surname = form_data["surname"]
+        #surname = form_data["surname"]
+        if not self.icon_control.find("1") != -1:            
+            surname = form_data["surname"][0:len(form_data["surname"])-1] #por el espacio añadido para no ser duplicado
+        else:    
+            surname = form_data["surname"]
         username = form_data["username"]
         rol = form_data["select"]
         if self.icon_control.find("3") != -1:            
@@ -128,13 +147,13 @@ class SelectState2(rx.State):
             if reset:
                 bytes = username.encode('utf-8') 
                 salt = bcrypt.gensalt() 
-                result = bcrypt.hashpw(bytes, salt).decode('utf-8')#lo convierte en str
+                result_psw = bcrypt.hashpw(bytes, salt).decode('utf-8')#lo convierte en str
             else:
                 #pasword antiguo
                 for user in self.value_list:
                     if user.get("surname") == surname:
-                        result= user.get("password")
-            replace_user.update({"password": result})           
+                        result_psw = user.get("password")
+            replace_user.update({"password": result_psw})           
             await user_db.replace_user(replace_user)
             yield rx.toast.success("Actualizado satisfactoriamente", duration=5000)
             self.icon_control = "23" 
@@ -152,13 +171,22 @@ class SelectState2(rx.State):
             add_user.update({"disabled": desabilitado})
             add_user.update({"password": password})
             await user_db.add_user(add_user)
-            SelectState2.refresh_users() 
+            yield SelectState2.refresh_users() 
             yield rx.toast.success("Añadido satisfactoriamente", duration=5000)
             self.icon_control = "23" 
-            self.form_disable=True 
-            print(surname)
+            self.name_form = self.name_form + " "
+            self.form_disable = True 
             self.value = surname
 
+    @rx.event
+    async def cancel(self):   
+        self.value = ""        
+        self.icon_control = "1" 
+        self.name_form= ""
+        self.user_form= ""
+        self.disabled_form= False
+        self.rol_form= "user"
+        self.form_disable=True
 
     @rx.event
     def choose_randomly(self):
@@ -242,34 +270,68 @@ def form_users() -> rx.Component:
                 ),         
                 rx.separator(),      
                 rx.form.root(
-                    rx.vstack(
-                        rx.text("Nombre"),
-                        rx.input(             
-                            value = SelectState2.name_form,               
-                            name="surname",
-                            width = "100%",
-                            color_scheme="green",
-                            required=True,
-                            disabled=SelectState2.form_disable, 
-                            on_change=SelectState2.set_name_form, 
-                            on_blur=SelectState2.on_change_name_form                                                      
-                        ),
-                        margin_y = "1em",  
-                    ),                     
-                    rx.vstack(
-                        rx.text("Usuario"),
-                        rx.input(
-                            value = SelectState2.user_form,
-                            name="username",
-                            width = "100%",
-                            color_scheme="green",
-                            required=True,
-                            disabled=SelectState2.form_disable,
-                            on_change=SelectState2.set_user_form,
-                            on_blur=SelectState2.on_change_user_form
-                        ),
-                        margin_y = "1em",  
-                    ), 
+                    rx.form.field( 
+                        rx.vstack(
+                            rx.text("Nombre"),
+                            rx.form.control(
+                                rx.input(     
+                                    placeholder="Nombre",        
+                                    value = SelectState2.name_form,               
+                                    name="surname",
+                                    width = "100%",
+                                    color_scheme="green",
+                                    required=True,
+                                    disabled=SelectState2.form_disable, 
+                                    on_change=SelectState2.set_name_form, 
+                                    on_blur=SelectState2.on_change_name_form,                                                                                    
+                                ),
+                                as_child=True,  
+                            ),
+                            rx.cond(
+                                SelectState2.surname_empty,
+                                rx.form.message(
+                                    "Nombre no puede ser vacio",
+                                    #force_match = SelectState2.surname_empty,
+                                    color="var(--red-11)",
+                                ),
+                            ),
+                            rx.cond(
+                                (~SelectState2.icon_control.contains("1")),    
+                                rx.form.message(
+                                    "Nombre ya existe",
+                                    match="valueMissing",
+                                    force_match = SelectState2.surname_is_taken,
+                                    color="var(--red-11)",
+                                ),
+                                #margin_y = "1em",  
+                            ),
+                        ), 
+                        name="username",
+                        server_invalid=SelectState2.surname_is_taken,
+                    ),     
+                    rx.form.field(     
+                        rx.vstack(
+                            rx.text("Usuario"),
+                            rx.input(
+                                placeholder="Usuario",
+                                value = SelectState2.user_form,
+                                name="username",
+                                width = "100%",
+                                color_scheme="green",
+                                required=True,
+                                disabled=SelectState2.form_disable,
+                                on_change=SelectState2.set_user_form,
+                                on_blur=SelectState2.on_change_user_form
+                            ),
+                            rx.form.message(
+                                "Es requerido un usuario valido",
+                                match="valueMissing",
+                                force_match=SelectState2.invalid_username,
+                                color="var(--red-11)",
+                            ),
+                            margin_y = "1em",  
+                        ), 
+                    ),
                     rx.hstack(
                         rx.checkbox(
                             name="check",
@@ -314,7 +376,8 @@ def form_users() -> rx.Component:
                             "Actualizar",
                             type="submit",
                             color_scheme= "grass",   
-                            disabled=SelectState2.form_disable, 
+                            disabled=SelectState2.input_invalid,
+                            #disabled=SelectState2.form_disable, 
                         ),                                                     
                         rx.spacer(),
                         rx.button(
@@ -322,7 +385,7 @@ def form_users() -> rx.Component:
                             type="reset",
                             color_scheme= "grass",   
                             disabled=SelectState2.form_disable,
-                            on_click= print("Cancelar")
+                            on_click= SelectState2.cancel
                         ),
                         rx.spacer(),
                     ),
