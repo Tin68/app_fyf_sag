@@ -8,12 +8,16 @@ from app_fyf_sag.componentes.body_pro import body_pro
 from app_fyf_sag.styles import utils
 from app_fyf_sag.componentes import routes as routes
 from app_fyf_sag.componentes.navbar import navbar
+import app_fyf_sag.pages.login as log
+#from app_fyf_sag.pages.login import require_login
+
 
 @rx.page(
         route= routes.Route.SHEET.value,
         title=utils.sheet_title,
         description= utils.sheet_description
 )
+@log.require_login
 def sheet() -> rx.Component:
     # Welcome Page (Index)
     return rx.vstack(

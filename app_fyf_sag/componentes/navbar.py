@@ -1,6 +1,7 @@
 import reflex as rx
-from app_fyf_sag.styles import style as style
 import datetime
+from app_fyf_sag.styles import style as style
+from app_fyf_sag.pages import login
 
 class CondState(rx.State):
     hoja: str = "Lista",
@@ -51,13 +52,17 @@ def navbar() -> rx.Component:
                 rx.button(
                     "Log out",
                     color_scheme="green",
-                    border_radius = "1em" 
+                    type="button",
+                    border_radius = "1em", 
+                    on_click= login.LoginState.do_logout,
                 ),
                 rx.spacer(),
                 rx.button(
                     "Admin",
                     color_scheme="green",
-                    border_radius = "1em" 
+                    border_radius = "1em", 
+                    type="button",
+                    on_click= print("Admin"),
                 ),
                 width="100%",
             ),
@@ -176,35 +181,35 @@ def navbar() -> rx.Component:
     )
 
 def menu_hojas () -> rx.Component:
-    return                 rx.menu.root(
-                    rx.menu.trigger(
-                        rx.button("Hoja", style= style.menu_drop_style),
-                    ),                    
-                    rx.menu.content(                         
-                        rx.menu.sub(
-                            rx.menu.sub_trigger("Carpetas", style= style.menu_sub_trigger_style),
-                            rx.menu.sub_content(
-                                rx.menu.item("Lista", color_scheme = "green", on_select = CondState.lista),
-                                rx.menu.item("Aduana", color_scheme = "green", on_select = CondState.aduana),                               
-                            ),                         
-                        ),                             
-                        rx.menu.sub(
-                            rx.menu.sub_trigger("Solicitos", style= style.menu_sub_trigger_style),
-                            rx.menu.sub_content(
-                                rx.menu.item("Documentos",color_scheme = "green" , on_select = CondState.documentos),
-                                rx.menu.item("Cumplidos",color_scheme = "green" , on_select = CondState.cumplicdos),
-                            ),
-                        ),    
-                        rx.menu.sub(
-                            rx.menu.sub_trigger("Provisiones", style= style.menu_sub_trigger_style),
-                            rx.menu.sub_content(
-                                rx.menu.item("Provisiones",color_scheme = "green" , on_select = CondState.provisiones),
-                                rx.menu.item("ProvCumplida",color_scheme = "green" , on_select = CondState.provCumplida),
-                            ),
-                        ),  
-                        color_scheme = "green"              
-                    ),                        
-                ),
+    return rx.menu.root(
+                rx.menu.trigger(
+                    rx.button("Hoja", style= style.menu_drop_style),
+                ),                    
+                rx.menu.content(                         
+                    rx.menu.sub(
+                        rx.menu.sub_trigger("Carpetas", style= style.menu_sub_trigger_style),
+                        rx.menu.sub_content(
+                            rx.menu.item("Lista", color_scheme = "green", on_select = CondState.lista),
+                            rx.menu.item("Aduana", color_scheme = "green", on_select = CondState.aduana),                               
+                        ),                         
+                    ),                             
+                    rx.menu.sub(
+                        rx.menu.sub_trigger("Solicitos", style= style.menu_sub_trigger_style),
+                        rx.menu.sub_content(
+                            rx.menu.item("Documentos",color_scheme = "green" , on_select = CondState.documentos),
+                            rx.menu.item("Cumplidos",color_scheme = "green" , on_select = CondState.cumplicdos),
+                        ),
+                    ),    
+                    rx.menu.sub(
+                        rx.menu.sub_trigger("Provisiones", style= style.menu_sub_trigger_style),
+                        rx.menu.sub_content(
+                            rx.menu.item("Provisiones",color_scheme = "green" , on_select = CondState.provisiones),
+                            rx.menu.item("ProvCumplida",color_scheme = "green" , on_select = CondState.provCumplida),
+                        ),
+                    ),  
+                    color_scheme = "green"              
+                ),                        
+            ),
 
 def menu_anho ()-> rx.Component:
     return rx.menu.root(

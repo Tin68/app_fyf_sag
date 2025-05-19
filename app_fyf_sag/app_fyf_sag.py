@@ -6,7 +6,7 @@ from app_fyf_sag.pages import index
 from app_fyf_sag.pages import login
 from app_fyf_sag.pages import sheet
 from app_fyf_sag.pages import form_users
-from app_fyf_sag.db import auth_users_db #user_db, auth_users, 
+from app_fyf_sag.db import auth_users_db, user_db #, auth_users, 
 from fastapi import FastAPI
 
 from rxconfig import config
@@ -29,7 +29,7 @@ fastapi_app = FastAPI()
 app = rxe.App(api_transformer=fastapi_app)
 #fastapi_app.include_router(auth_users.auth_router)
 fastapi_app.include_router(auth_users_db.auth_db_router)
-#fastapi_app.include_router(user_db.items_router)
+fastapi_app.include_router(user_db.items_router)
 
 
 #app.include_router(user_db.items_router)

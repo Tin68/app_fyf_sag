@@ -24,7 +24,7 @@ def index() -> rx.Component:
             rx.link(
                     "Pagina Protegida, Autentifiquese",
                     color_scheme="grass",
-                    href = routes.Route.LOGIN.value
+                    href =routes.Route.SHEET.value
                     ),
             spacing="2",
             padding_top = "10%",

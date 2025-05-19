@@ -217,65 +217,182 @@ def form_users() -> rx.Component:
                     ),   
                     margin = "1em",           
                 ), 
-                rx.form.root(
-                    rx.vstack(
-                        rx.text(
-                            "Nombre ",
-                        ),
-                        rx.input(
-                            name="surname",
-                            width = "100%",
-                            required=True,
-                        ),
-                    ),                     
-                    rx.vstack(
-                        rx.text(
-                            "Usuario ",
-                        ),
-                        rx.input(
-                            name="username",
-                            width = "100%",
-                            required=True,
-                        ),
-                    ),                
-                    rx.vstack(
-                        rx.text(
-                            "Contraseña ",
-                        ),
-                        rx.input(
-                            name="password",
-                            width = "100%",
-                            type="password",
-                            required=True,
-                        ),
-                        margin_y = "1em",  
-                    ),  
-                    #rx.checkbox(text="Deshabilitado", color_scheme="green"),
-                    rx.hstack(
-                        rx.text("Deshabilitado"),
-                        rx.switch(color_scheme="green"),
-                        margin_y = "1em", 
-                    ),
-                    rx.hstack(
-                        rx.text("Rol"),
-                        rx.select(
-                            ["admin", "user"],
-                            #value=SelectState.value,
-                            #on_change=SelectState.change_value,
+                rx.hstack(
+                    rx.text("Usuarios"),
+                    rx.select.root(
+                        rx.select.trigger(placeholder="Seleccione usuarios",color_scheme="green",),
+                        rx.select.content(
+                            rx.select.group(
+                                rx.foreach(
+                                    SelectState2.values,
+                                    lambda x: rx.select.item(
+                                        x, value=x                                            
+                                    ),                                                        
+                                )                                    
+                            ),                            
                             color_scheme="green",
                         ),
-                        margin_y = "1em", 
+                        value=SelectState2.value,
+                        on_change=SelectState2.set_value,  
+                        on_open_change= SelectState2.set_users_change(),                                       
                     ),
-                    rx.center(
+                    margin_y = "1em", 
+                ),
+                rx.separator(),   
+                rx.hstack(
+                    rx.cond(
+                        (SelectState2.icon_control.contains("1")),
+                        rx.link(                        
+                            rx.icon(tag="user-plus", size = 30, color="green"), 
+                            on_click=SelectState2.add_user,
+                        ),   
+                        rx.icon(tag="user-plus", size = 30, color=rx.color("green", 12)),  
+                    ),                 
+                    rx.spacer(),
+                    rx.cond(
+                        (SelectState2.icon_control.contains("2")),
+                        rx.link(
+                            rx.icon(tag="user-minus", size = 30, color="green"),
+                            on_click=SelectState2.delete_user(SelectState2.user_form),
+                        ),     
+                        rx.icon(tag="user-minus", size = 30, color=rx.color("green", 12)),  
+                    ),                   
+                    rx.spacer(),
+                    rx.cond(                        
+                        (SelectState2.icon_control.contains("3")),
+                        rx.link(
+                            rx.icon(tag="user-pen", size = 30, color="green"),
+                            on_click = SelectState2.edit_user()
+                        ),  
+                        rx.icon(tag="user-pen", size = 30, color=rx.color("green", 12)),                                               
+                    ),
+                    margin = "1em",           
+                ),         
+                rx.separator(),      
+                rx.form.root(
+                    rx.form.field( 
+                        rx.vstack(
+                            rx.text("Nombre"),
+                            rx.form.control(
+                                rx.input(     
+                                    placeholder="Nombre",        
+                                    value = SelectState2.name_form,               
+                                    name="surname",
+                                    width = "100%",
+                                    color_scheme="green",
+                                    required=True,
+                                    disabled=SelectState2.form_disable, 
+                                    on_change=SelectState2.set_name_form, 
+                                    on_blur=SelectState2.on_change_name_form,                                                                                    
+                                ),
+                                as_child=True,  
+                            ),
+                            rx.cond(
+                                SelectState2.surname_empty,
+                                rx.form.message(
+                                    "Nombre no puede ser vacio",
+                                    #force_match = SelectState2.surname_empty,
+                                    color="var(--red-11)",
+                                ),
+                            ),
+                            rx.cond(
+                                (~SelectState2.icon_control.contains("1")),    
+                                rx.form.message(
+                                    "Nombre ya existe",
+                                    match="valueMissing",
+                                    force_match = SelectState2.surname_is_taken,
+                                    color="var(--red-11)",
+                                ),
+                                #margin_y = "1em",  
+                            ),
+                        ), 
+                        name="username",
+                        server_invalid=SelectState2.surname_is_taken,
+                    ),     
+                    rx.form.field(     
+                        rx.vstack(
+                            rx.text("Usuario"),
+                            rx.input(
+                                placeholder="Usuario",
+                                value = SelectState2.user_form,
+                                name="username",
+                                width = "100%",
+                                color_scheme="green",
+                                required=True,
+                                disabled=SelectState2.form_disable,
+                                on_change=SelectState2.set_user_form,
+                                on_blur=SelectState2.on_change_user_form
+                            ),
+                            rx.form.message(
+                                "Es requerido un usuario valido",
+                                match="valueMissing",
+                                force_match=SelectState2.invalid_username,
+                                color="var(--red-11)",
+                            ),
+                            margin_y = "1em",  
+                        ), 
+                    ),
+                    rx.hstack(
+                        rx.checkbox(
+                            name="check",
+                            text="Resetear Contraseña",
+                            color_scheme="green",
+                            disabled=SelectState2.form_disable,
+                        ),
+                        margin_y = "1em",
+                    ),
+                    rx.hstack(
+                        rx.hstack(
+                            rx.text("Deshabilitado"),
+                            rx.switch(
+                                name="switch",
+                                color_scheme="green",
+                                checked= SelectState2.disabled_form,
+                                disabled=SelectState2.form_disable,
+                                on_change=SelectState2.set_disabled_form,
+                            ),
+                            margin_y = "1em", 
+                        ),
+                        rx.spacer(),
+                        rx.hstack(
+                            rx.text("Rol"),
+                            rx.select(                                
+                                ["user","admin"],
+                                default_value="user",
+                                name="select",
+                                required=True,
+                                color_scheme="green",
+                                value = SelectState2.rol_form,
+                                disabled=SelectState2.form_disable,
+                                on_change=SelectState2.set_rol_form,
+                            ),
+                            
+                            margin_y = "1em", 
+                        ),
+                    ),
+                    rx.hstack(
+                        rx.spacer(),
                         rx.button(
                             "Actualizar",
                             type="submit",
-                            color_scheme= "grass",                                       
+                            color_scheme= "grass",   
+                            disabled=SelectState2.input_invalid,
+                            #disabled=SelectState2.form_disable, 
+                        ),                                                     
+                        rx.spacer(),
+                        rx.button(
+                            "Cancelar",
+                            type="reset",
+                            color_scheme= "grass",   
+                            disabled=SelectState2.form_disable,
+                            on_click= SelectState2.cancel
                         ),
+                        rx.spacer(),
                     ),
-                    #on_submit=UsersState.submit,   
-                    #reset_on_submit=True,
+                    on_submit = SelectState2.submit,
+                    reset_on_submit = True, #SelectState2.reset_submit,
                 ),
+                width = "25vw",
             ),
             padding = "50px 50px 50px 50px",
             bg="#1D2330",
