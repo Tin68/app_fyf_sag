@@ -1,13 +1,34 @@
+from fastapi import HTTPException, status
 import reflex as rx
-import datetime
+import datetime, time
+import jwt
 from app_fyf_sag.styles import style as style
-from app_fyf_sag.pages import login
+from app_fyf_sag.pages.login import LoginState
+from app_fyf_sag.styles import utils
+from localStoragePy import localStoragePy as ls
+
+localStorage = ls('fyf', 'json')  #ls('pmdb', 'json')
+
+ALGORITHM = utils.login_algorithm
+SECRET = utils.login_secret
+TOKEN = "access_token"
 
 class CondState(rx.State):
     hoja: str = "Lista",
     anho: int = datetime.date.today().year,
     c_s_disable: bool = True
     which_dialog_open: str = ""
+    token: str = str (localStorage.getItem(TOKEN)) #(ls.getItem(localStorage,"access_token"))
+    rol: str = localStorage.getItem("rol")
+    sub: str = localStorage.getItem("sub")
+    localStorage.setItem('hoja', hoja)
+
+    @rx.event(background=True)
+    async def on_load(self):       
+        time.sleep(5)   
+        self.rol = localStorage.getItem("rol")
+        self.sub = localStorage.getItem("sub")
+        print
 
     def anho_m1(self):
         self.anho = datetime.date.today().year + 1
@@ -20,10 +41,12 @@ class CondState(rx.State):
 
     def lista(self):
         self.hoja = "Lista"
+        localStorage.setItem('hoja', self.hoja)
         self.c_s_disable = False
 
     def aduana(self):
         self.hoja = "Aduana"
+        localStorage.setItem('hoja', self.hoja)
         self.c_s_disable = True
 
     def documentos(self):
@@ -45,6 +68,7 @@ class CondState(rx.State):
     def open_a_aduana_dialog(self):
         self.which_dialog_open = "a_aduana"
 
+@rx.page(on_load=CondState.on_load)
 def navbar() -> rx.Component:
     return rx.flex(
         rx.vstack(
@@ -54,15 +78,32 @@ def navbar() -> rx.Component:
                     color_scheme="green",
                     type="button",
                     border_radius = "1em", 
-                    on_click= login.LoginState.do_logout,
+                    on_click= LoginState.do_logout,
                 ),
                 rx.spacer(),
-                rx.button(
-                    "Admin",
+                rx.badge(
+                    f"{CondState.sub}",
+                    variant="solid",
                     color_scheme="green",
-                    border_radius = "1em", 
-                    type="button",
-                    on_click= print("Admin"),
+                    aling="center"
+                ),
+                rx.spacer(),
+                rx.cond(
+                    CondState.rol == "user",
+                    rx.button(
+                        "User",
+                        color_scheme="green",
+                        border_radius = "1em", 
+                        type="button",
+                        on_click= print("Admin"),
+                    ),
+                    rx.button(
+                        "Admin",
+                        color_scheme="green",
+                        border_radius = "1em", 
+                        type="button",
+                        on_click= print("Admin"),
+                    ),
                 ),
                 width="100%",
             ),

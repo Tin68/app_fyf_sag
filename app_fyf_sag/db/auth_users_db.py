@@ -13,6 +13,7 @@ from app_fyf_sag.db.models.user import User, UserDB
 
 ALGORITHM = utils.login_algorithm
 ACCESS_TOKEN_DURATION = utils.login_access_token_duration
+REFRESH_TOKEN_DURATION = utils.login_refresh_token_duration
 SECRET = utils.login_secret
 
 auth_db_router = APIRouter(prefix="/logindb",
@@ -34,8 +35,7 @@ def search_user(field: str, key):
 
 def search_userdb(field: str, key):
     try:
-        user = db_client.users.find_one({field: key})
-        
+        user = db_client.users.find_one({field: key})        
         return UserDB(**user_schema(user))
     except:
         return {"error": "No se ha encontrado el usuario"}   
@@ -72,7 +72,6 @@ async def auth_user(token : str = Depends(oauth2)):
         username = jwt.decode(token, SECRET, algorithms = [ALGORITHM]).get("sub")
         if username is None:
             raise exception
-        
     except : #PyJWTError:
         raise exception
     return search_user ("username",username)
@@ -92,13 +91,20 @@ async def logindb(form_data: dict[str, str] = Depends(oauth2)):
         raise HTTPException(
             status_code=status.HTTP_302_FOUND,
             detail="El Usuario no existe")                        
-    #user_db = users_db.get(form.username)
     if not crypt.verify(form_data.get("password"), user.password):
         raise HTTPException(status_code = status.HTTP_400_BAD_REQUEST, detail="La contraseña no es correcta")
     access_token = {"sub" : user.username,
+                    "rol" : user.rol,
                     "exp": datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_DURATION)} #sustituye datetime.utcnow() --> datetime.now(timezone.utc)
+    refresh_token = {"sub" : user.username,
+                    "exp": datetime.now(timezone.utc) + timedelta(minutes=REFRESH_TOKEN_DURATION)}
+    
     #return {"accss_toke" : access_token,  "token_tpe": "bearer"} #desencriptado
-    return {"access_token" : jwt.encode(access_token, SECRET, algorithm = ALGORITHM) ,  "token_tpe": "bearer"} #encriptado
+    #return {"access_token" : jwt.encode(access_token, SECRET, algorithm = ALGORITHM) ,  "token_tpe": "bearer"} #encriptado
+    acc_token = {"access_token" : jwt.encode(access_token, SECRET, algorithm = ALGORITHM) ,  "token_tpe": "bearer"}
+    ref_token = {"refresh_token" : jwt.encode(refresh_token, SECRET, algorithm = ALGORITHM) ,  "token_tpe": "bearer"}
+    login_token = {"acc_token" : acc_token , "ref_token" : ref_token}
+    return login_token
 
 
 @auth_db_router.get("/users/me") #http://127.0.0.1:8000/logindb/users/me

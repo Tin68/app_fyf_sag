@@ -1,22 +1,43 @@
 #import requests 
 import reflex as rx
-
+import jwt
 from app_fyf_sag.componentes import routes
 from app_fyf_sag.styles import utils
 from app_fyf_sag.db import auth_users_db
+from localStoragePy import localStoragePy as ls
+
+localStorage = ls('fyf', 'json')
+ALGORITHM = utils.login_algorithm
+SECRET = utils.login_secret
 
 class LoginState(rx.State):
     form_data_state: dict = []
-    token_aut: str = ""
     redirect_to: str = ""
+    token_aut: str = ""
+    token_refr: str = ""
 
-    @rx.event
+    rx.event
     async def submit(self, form_data: dict):      
         form_data["username"] = form_data.get("username").upper() #pone en mayusculas el usuario
         form_data_state = form_data
         aut_dic = await auth_users_db.logindb(form_data_state)
-        self.token_aut = aut_dic["access_token"]
+        self.token_aut = aut_dic["acc_token"]["access_token"]
+        self.token_refr = aut_dic["ref_token"]["refresh_token"]
+        print("login")
         print(self.token_aut)
+        print(self.token_refr)
+        rol = jwt.decode(self.token_aut, SECRET, algorithms= [ALGORITHM]).get("rol")
+        localStorage.setItem("rol",rol)
+        print(rol)
+        sub = jwt.decode(self.token_aut, SECRET, algorithms= [ALGORITHM]).get("sub")
+        localStorage.setItem("sub",sub)
+        print(sub)
+        exp_token = jwt.decode(self.token_aut, SECRET, algorithms= [ALGORITHM]).get("exp")
+        localStorage.setItem("exp",exp_token)
+        print(exp_token)
+        exp_ref_token = jwt.decode(self.token_refr, SECRET, algorithms= [ALGORITHM]).get("exp")
+        localStorage.setItem("exp",exp_ref_token)
+        print(exp_ref_token)
         if self.token_aut is None:
             return rx.redirect(routes.Route.LOGIN.value)
         else:
@@ -25,7 +46,6 @@ class LoginState(rx.State):
     def redir(self) -> rx.event.EventSpec | None:
         #Redirect to the redirect_to route if logged in, or to the login page if not.
         if not self.is_hydrated:
-            print("no hydrated")
             # wait until after hydration to ensure auth_token is known
             return LoginState.redir()  # type: ignore
         page = self.router.page.path
@@ -36,21 +56,20 @@ class LoginState(rx.State):
         #elif self.is_authenticated and page == routes.Route.LOGIN.value:
         elif self.token_aut != "" and page == routes.Route.LOGIN.value:
             return rx.redirect(self.redirect_to or "/")    
-        
+
     @rx.event
     async def do_logout(self):
         """Destroy LocalAuthSessions associated with the auth_token."""
         self.token_aut = ""
+        self.token_refr =""
+        localStorage.clear()
         yield rx.redirect(routes.Route.INDEX.value)    
 
 def require_login(page: rx.app.ComponentCallable) -> rx.app.ComponentCallable:
     """Decorator to require authentication before rendering a page.
-
     If the user is not authenticated, then redirect to the login page.
-
     Args:
         page: The page to wrap.
-
     Returns:
         The wrapped page component.
     """
