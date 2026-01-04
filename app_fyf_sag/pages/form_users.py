@@ -15,11 +15,16 @@ class SelectState2(rx.State):
     form_data: dict = [] 
     values: list [str] =[]
     value_list: list [User] = []
-    value: str = ""
-    name_form: str = ""
-    user_form: str = ""
-    disabled_form: bool = False
-    rol_form: str = "user"
+    set_value: str = ""
+    #value: str = ""
+    set_name_form: str = ""
+    #name_form: str = ""
+    set_user_form: str = ""
+    #user_form: str = ""
+    set_disabled_form: bool = False
+    #disabled_form: bool = False
+    set_rol_form: str = "user"
+    #rol_form: str = "user"    
     form_disable: bool = True
     icon_control: str = "1"
 
@@ -232,9 +237,9 @@ def form_users() -> rx.Component:
                             ),                            
                             color_scheme="green",
                         ),
-                        value=SelectState2.value,
+                        value=SelectState2.set_value,
                         on_change=SelectState2.set_value,  
-                        on_open_change= SelectState2.set_users_change(),                                       
+                        on_open_change= SelectState2.set_users_change,                                      
                     ),
                     margin_y = "1em", 
                 ),

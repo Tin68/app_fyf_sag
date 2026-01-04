@@ -2,6 +2,8 @@ import reflex as rx
 import reflex_enterprise as rxe
 import pandas as pd
 
+
+
 #from ..componentes.navbar import navbar as navbar
 
 df = pd.read_csv(
