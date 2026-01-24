@@ -1,8 +1,9 @@
 from pydantic import BaseModel
 from typing import Optional
+from typing import TypedDict
 
 #Entidad Sheet
-class Sheet(BaseModel):
+class Sheet(BaseModel): #class User(TypedDict):
     id: Optional[str]
     num: int
     buque: str

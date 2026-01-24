@@ -95,7 +95,7 @@ def navbar() -> rx.Component:
                         color_scheme="green",
                         border_radius = "1em", 
                         type="button",
-                        on_click= print("Admin"),
+                        on_click= print("User"),
                     ),
                     rx.button(
                         "Admin",

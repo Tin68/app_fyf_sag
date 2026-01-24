@@ -28,6 +28,7 @@ fastapi_app = FastAPI()
 
 app = rxe.App(api_transformer=fastapi_app)
 #fastapi_app.include_router(auth_users.auth_router)
+
 fastapi_app.include_router(auth_users_db.auth_db_router)
 fastapi_app.include_router(user_db.items_router)
 

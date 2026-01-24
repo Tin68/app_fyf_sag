@@ -1,6 +1,8 @@
 import reflex as rx
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
+from typing import TypedDict
+
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 import jwt
 from jwt.exceptions import InvalidTokenError
@@ -27,7 +29,7 @@ crypt = CryptContext(schemes="bcrypt")
 
 #Entidad User
 
-class User(BaseModel):
+class User(BaseModel): #class User(TypedDict):
     username: str
     surname: str
     rol: str
